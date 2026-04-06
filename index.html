@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- saved from url=(0057)file:///Users/alpanastasia/Downloads/flash_and_shine.html -->
+<!-- saved from url=(0047)file:///Users/alpanastasia/Downloads/index.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flash &amp; Shine</title>
 <link rel="preconnect" href="https://fonts.googleapis.com/">
-<link href="./index_NEW_files/css2" rel="stylesheet">
+<link href="./index_files/css2" rel="stylesheet">
 <style>
 :root{--bg:#f7f5f0;--bg2:#fff;--bg3:#f0ede6;--bg4:#e6e2d8;--border:#ddd9ce;--border2:#ccc8bc;--text:#1a1816;--text2:#6b6660;--text3:#a09a90;--accent:#8c6d2f;--accent2:#b08840;--fail:#b03030;--fail-bg:#fdf0f0;--fail-bd:#e8b0b0;--hard:#b05a00;--hard-bg:#fdf4ee;--hard-bd:#f0c090;--good:#2a7a3a;--good-bg:#f0faf2;--good-bd:#a0d8b0;--easy:#2a54a0;--easy-bg:#f0f4fd;--easy-bd:#a0b8e8;--r:12px;--rs:8px;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -246,28 +246,27 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
     <div id="screen-review" class="screen active">
       <div class="setup-banner" id="setup-banner" style="display: block;">
         <strong style="color:var(--accent)">Local mode</strong> — data stays in this browser only. Add Firebase config to <code>FIREBASE_CONFIG</code> and follow SETUP.md to sync.
-        <a href="file:///Users/alpanastasia/Downloads/flash_and_shine.html#" onclick="document.getElementById(&#39;setup-banner&#39;).style.display=&#39;none&#39;;return false" style="color:var(--accent);margin-left:.4rem">Dismiss</a>
+        <a href="file:///Users/alpanastasia/Downloads/index.html#" onclick="document.getElementById(&#39;setup-banner&#39;).style.display=&#39;none&#39;;return false" style="color:var(--accent);margin-left:.4rem">Dismiss</a>
       </div>
       <!-- Pre-review setup (shown when not in active session) -->
       <div id="prereview-wrap" style="display: block;">
     <div class="prereview">
       <div class="prereview-section">
         <div class="prereview-label">Deck</div>
-        <div class="pill-row" style="margin:0"><button class="pill" onclick="selectPreDeck(&#39;mnm9pc8pwgew&#39;)">Czech</button></div>
+        <div class="pill-row" style="margin:0"><button class="pill active" onclick="selectPreDeck(&#39;mnnmac8l8mgb&#39;)">Czech</button></div>
       </div>
       <div class="prereview-section">
         <div class="prereview-label">Direction</div>
-        <div class="pill-row" style="margin:0"><span style="color:var(--text3);font-size:.82rem">Select a deck first</span></div>
+        <div class="pill-row" style="margin:0">
+    <button class="pill active" onclick="setPreDir(&#39;forward&#39;)">Czech → Russian</button>
+     <button class="pill" onclick="setPreDir(&#39;reverse&#39;)">Russian → Czech</button></div>
       </div>
       <div class="prereview-section">
         <div class="prereview-label">Filter by progress</div>
         <div class="pill-row" style="margin:0;margin-bottom:.4rem"><button class="pill pn" onclick="tglFPre(&#39;new&#39;,this)">New</button><button class="pill pf" onclick="tglFPre(&#39;fail&#39;,this)">Failing</button><button class="pill pf" onclick="tglFPre(&#39;vhard&#39;,this)">Very Hard</button><button class="pill ph" onclick="tglFPre(&#39;hard&#39;,this)">Hard</button><button class="pill pg" onclick="tglFPre(&#39;good&#39;,this)">Good</button><button class="pill pe" onclick="tglFPre(&#39;easy&#39;,this)">Easy</button></div>
         <span style="font-family:&#39;JetBrains Mono&#39;,monospace;font-size:.6rem;color:var(--text3)">Leave all unselected to review all due cards</span>
       </div>
-      <div class="prereview-section">
-        <div class="prereview-label">Filter by tag</div>
-        <div class="pill-row" style="margin:0"><button class="pill" onclick="tglFTpre(&#39;adjective&#39;,this)">adjective</button><button class="pill" onclick="tglFTpre(&#39;adverb&#39;,this)">adverb</button><button class="pill" onclick="tglFTpre(&#39;family&#39;,this)">family</button><button class="pill" onclick="tglFTpre(&#39;feminine&#39;,this)">feminine</button><button class="pill" onclick="tglFTpre(&#39;geography&#39;,this)">geography</button><button class="pill" onclick="tglFTpre(&#39;mascilune&#39;,this)">mascilune</button><button class="pill" onclick="tglFTpre(&#39;masculine&#39;,this)">masculine</button><button class="pill" onclick="tglFTpre(&#39;mini-word (pronouns, interjections, etc)&#39;,this)">mini-word (pronouns, interjections, etc)</button><button class="pill" onclick="tglFTpre(&#39;neuter&#39;,this)">neuter</button><button class="pill" onclick="tglFTpre(&#39;noun&#39;,this)">noun</button><button class="pill" onclick="tglFTpre(&#39;phrase&#39;,this)">phrase</button><button class="pill" onclick="tglFTpre(&#39;plural&#39;,this)">plural</button><button class="pill" onclick="tglFTpre(&#39;salutation&#39;,this)">salutation</button><button class="pill" onclick="tglFTpre(&#39;verb&#39;,this)">verb</button></div>
-      </div>
+      
       <div class="prereview-section">
         <div class="prereview-label">Word cap (leave empty for all)</div>
         <input type="number" class="cap-input" id="cap-input" value="" min="1" placeholder="e.g. 200" oninput="saveCap(this.value)" style="max-width:180px">
@@ -425,7 +424,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
     <div class="modal-footer"><button class="btn" onclick="closeModal(&#39;mod-rename-tag&#39;)">Cancel</button><button class="btn btn-primary" onclick="doRenameTag()">Rename</button></div>
   </div>
 </div>
-<div class="notif" id="notif">Migrated existing cards.</div>
+<div class="notif" id="notif"></div>
 
 <script>
 // ═══ FIREBASE CONFIG ════════════════════════════════
@@ -454,9 +453,9 @@ async function initFirebase(){
   if(!FB_ON){bootLocal();return;}
   try{
     const[am,au,fs]=await Promise.all([
-      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js')
+      import('https://cdn.jsdelivr.net/npm/firebase@10.12.0/app/+esm'),
+      import('https://cdn.jsdelivr.net/npm/firebase@10.12.0/auth/+esm'),
+      import('https://cdn.jsdelivr.net/npm/firebase@10.12.0/firestore/+esm')
     ]);
     const app=am.initializeApp(FIREBASE_CONFIG);
     fbAuth=au.getAuth(app);fbDb=fs.getFirestore(app);
