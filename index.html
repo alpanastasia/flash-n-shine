@@ -450,22 +450,93 @@ async function loadCloud(){
     const lastUid=localStorage.getItem('flashshine_last_uid');
     if(lastUid && lastUid!==currentUser.uid){
       localStorage.removeItem('flashshine_v5');
-      db=loadLocal(); // reset to empty
+      db=loadLocal();
       console.log('Cleared localStorage for new user');
     }
     localStorage.setItem('flashshine_last_uid',currentUser.uid);
-    const s=await fbGetDoc(fbDocFn(fbDb,'users',currentUser.uid));
-    if(s.exists()){
-      db={...s.data()};
-      ['synLinks','synIgnore'].forEach(k=>{if(!db[k])db[k]=[];});
-      if(!db.deckCaps)db.deckCaps={};
-      saveLocal(db);
-    }
-    // If no Firestore doc yet, current db (empty or from localStorage) will be used
-    // and will get saved to Firestore on first change
+    await loadFromFirestore();
   }catch(e){console.error('Load:',e);}
 }
-function scheduleSave(){saveLocal(db);if(!FB_ON||!currentUser||currentUser.uid==='local')return;clearTimeout(saveTimer);saveTimer=setTimeout(async()=>{try{await fbSetDoc(fbDocFn(fbDb,'users',currentUser.uid),{...db,_ts:Date.now()});}catch(e){console.error('Save:',e);}},1500);}
+function scheduleSave(){
+  saveLocal(db);
+  if(!FB_ON||!currentUser||currentUser.uid==='local')return;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>saveToFirestore(),1500);
+}
+
+async function saveToFirestore(){
+  if(!FB_ON||!currentUser||currentUser.uid==='local')return;
+  const uid=currentUser.uid;
+  try{
+    // Split into chunks to avoid Firestore 20k index limit
+    // Main doc: decks, settings, synLinks, synIgnore, deckCaps
+    // Progress doc: progress object (can be large)
+    // Cards are split into chunks of 200
+    const CHUNK=200;
+    const cards=db.cards||[];
+    const numChunks=Math.ceil(cards.length/CHUNK)||1;
+
+    // Save main doc (no cards, no progress)
+    await fbSetDoc(fbDocFn(fbDb,'users',uid),{
+      decks:db.decks||[],
+      synLinks:db.synLinks||[],
+      synIgnore:db.synIgnore||[],
+      deckCaps:db.deckCaps||{},
+      pendingDups:db.pendingDups||[],
+      numCardChunks:numChunks,
+      _ts:Date.now()
+    });
+
+    // Save card chunks
+    for(let i=0;i<numChunks;i++){
+      const chunk=cards.slice(i*CHUNK,(i+1)*CHUNK);
+      await fbSetDoc(fbDocFn(fbDb,'users/'+uid+'/chunks','cards_'+i),{cards:chunk});
+    }
+    // Delete extra chunks if cards were deleted
+    // (skip for now — orphan chunks are harmless)
+
+    // Save progress in its own doc (progress keys are short strings)
+    await fbSetDoc(fbDocFn(fbDb,'users/'+uid+'/chunks','progress'),{progress:db.progress||{}});
+
+    console.log('Saved to Firestore: '+cards.length+' cards, '+Object.keys(db.progress||{}).length+' progress entries');
+  }catch(e){console.error('Save failed:',e);}
+}
+
+async function loadFromFirestore(){
+  if(!FB_ON||!currentUser)return false;
+  const uid=currentUser.uid;
+  try{
+    const mainSnap=await fbGetDoc(fbDocFn(fbDb,'users',uid));
+    if(!mainSnap.exists())return false;
+    const main=mainSnap.data();
+
+    // Load card chunks
+    const numChunks=main.numCardChunks||1;
+    let cards=[];
+    for(let i=0;i<numChunks;i++){
+      const snap=await fbGetDoc(fbDocFn(fbDb,'users/'+uid+'/chunks','cards_'+i));
+      if(snap.exists())cards=cards.concat(snap.data().cards||[]);
+    }
+
+    // Load progress
+    const progSnap=await fbGetDoc(fbDocFn(fbDb,'users/'+uid+'/chunks','progress'));
+    const progress=progSnap.exists()?progSnap.data().progress||{}:{};
+
+    db={
+      decks:main.decks||[],
+      cards,
+      progress,
+      synLinks:main.synLinks||[],
+      synIgnore:main.synIgnore||[],
+      deckCaps:main.deckCaps||{},
+      pendingDups:main.pendingDups||[]
+    };
+    ['synLinks','synIgnore'].forEach(k=>{if(!db[k])db[k]=[];});
+    if(!db.deckCaps)db.deckCaps={};
+    saveLocal(db);
+    return true;
+  }catch(e){console.error('Load failed:',e);return false;}
+}
 function showLogin(){document.getElementById('login-wrap').style.display='flex';document.getElementById('shell').style.display='none';}
 function bootLocal(){currentUser={uid:'local',email:'local'};document.getElementById('nav-user').textContent='local mode';document.getElementById('setup-banner').style.display='block';bootApp();}
 function bootApp(){
@@ -920,6 +991,7 @@ function renderStats(){
   const fwd=dStats(fwdK),rev=dStats(revK);
   function sc(label,val,cls,dir,cat){return`<div class="sc" onclick="showWL('${label}','${dir}','${cat}')"><div class="sc-label">${label}</div><div class="sc-val ${cls}">${val}</div><div class="sc-hint">see words →</div></div>`;}
   const grid=(d,dir)=>sc('New',d.new,'',dir,'new')+sc('Hard',d.hard,'hc',dir,'hard')+sc('Very Hard',d.vhard,'fail',dir,'vhard')+sc('Failing',d.fail,'fail',dir,'fail')+sc('Good',d.good,'',dir,'good')+sc('Easy',d.easy,'easy',dir,'easy');
+  if(!deck)return;
   const revSection=deck.noReverse?'':`<div style="margin-bottom:.8rem;margin-top:1.8rem"><span class="stitle">${esc(deck.langB)} → ${esc(deck.langA)}</span></div><div class="stats-grid">${grid(rev,'rev')}</div>`;
   content.innerHTML=`<div style="margin-bottom:.8rem"><span class="stitle">${esc(deck.langA)} → ${esc(deck.langB)}</span></div><div class="stats-grid">${grid(fwd,'fwd')}</div>${revSection}<div class="divider"></div><button class="btn btn-sm btn-danger" onclick="confirmResetProg()">Reset all progress for this deck</button>`;
 }
