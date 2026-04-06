@@ -444,7 +444,27 @@ async function doLogin(){
   try{await window._fbSI(fbAuth,email,pass);}catch(e){err.textContent=e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'?'Incorrect email or password.':e.message;}
 }
 async function doSignOut(){if(FB_ON&&fbAuth)await window._fbSO(fbAuth);else showLogin();}
-async function loadCloud(){try{const s=await fbGetDoc(fbDocFn(fbDb,'users',currentUser.uid));if(s.exists()){db={...s.data()};['synLinks','synIgnore'].forEach(k=>{if(!db[k])db[k]=[];});if(!db.deckCaps)db.deckCaps={};saveLocal(db);}}catch(e){console.error('Load:',e);}}
+async function loadCloud(){
+  try{
+    // If a different user was here before, wipe localStorage so their data doesn't leak
+    const lastUid=localStorage.getItem('flashshine_last_uid');
+    if(lastUid && lastUid!==currentUser.uid){
+      localStorage.removeItem('flashshine_v5');
+      db=loadLocal(); // reset to empty
+      console.log('Cleared localStorage for new user');
+    }
+    localStorage.setItem('flashshine_last_uid',currentUser.uid);
+    const s=await fbGetDoc(fbDocFn(fbDb,'users',currentUser.uid));
+    if(s.exists()){
+      db={...s.data()};
+      ['synLinks','synIgnore'].forEach(k=>{if(!db[k])db[k]=[];});
+      if(!db.deckCaps)db.deckCaps={};
+      saveLocal(db);
+    }
+    // If no Firestore doc yet, current db (empty or from localStorage) will be used
+    // and will get saved to Firestore on first change
+  }catch(e){console.error('Load:',e);}
+}
 function scheduleSave(){saveLocal(db);if(!FB_ON||!currentUser||currentUser.uid==='local')return;clearTimeout(saveTimer);saveTimer=setTimeout(async()=>{try{await fbSetDoc(fbDocFn(fbDb,'users',currentUser.uid),{...db,_ts:Date.now()});}catch(e){console.error('Save:',e);}},1500);}
 function showLogin(){document.getElementById('login-wrap').style.display='flex';document.getElementById('shell').style.display='none';}
 function bootLocal(){currentUser={uid:'local',email:'local'};document.getElementById('nav-user').textContent='local mode';document.getElementById('setup-banner').style.display='block';bootApp();}
