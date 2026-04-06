@@ -429,7 +429,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
 
 <script>
 // ═══ FIREBASE CONFIG ════════════════════════════════
-const FIREBASE_CONFIG={apiKey:"",authDomain:"",projectId:"",storageBucket:"",messagingSenderId:"",appId:""};
+const FIREBASE_CONFIG=${{ secrets.FIREBASE_CONFIG }};
 const FB_ON=FIREBASE_CONFIG.apiKey!=="";
 
 // ═══ LOCAL STORAGE ═══════════════════════════════════
