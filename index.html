@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
+<!-- saved from url=(0057)file:///Users/alpanastasia/Downloads/flash_and_shine.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flash & Shine</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>Flash &amp; Shine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link href="./index_NEW_files/css2" rel="stylesheet">
 <style>
 :root{--bg:#f7f5f0;--bg2:#fff;--bg3:#f0ede6;--bg4:#e6e2d8;--border:#ddd9ce;--border2:#ccc8bc;--text:#1a1816;--text2:#6b6660;--text3:#a09a90;--accent:#8c6d2f;--accent2:#b08840;--fail:#b03030;--fail-bg:#fdf0f0;--fail-bd:#e8b0b0;--hard:#b05a00;--hard-bg:#fdf4ee;--hard-bd:#f0c090;--good:#2a7a3a;--good-bg:#f0faf2;--good-bd:#a0d8b0;--easy:#2a54a0;--easy-bg:#f0f4fd;--easy-bd:#a0b8e8;--r:12px;--rs:8px;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -59,10 +59,13 @@ body{background:var(--bg);color:var(--text);font-family:'Lora',Georgia,serif;min
 .prog-bar{height:2px;background:var(--border);border-radius:1px;margin-bottom:1.5rem;overflow:hidden;}
 .prog-fill{height:100%;background:var(--accent);transition:width .4s ease;}
 .card-scene{width:100%;perspective:1200px;margin-bottom:1rem;cursor:pointer;}
-.card-inner{position:relative;width:100%;min-height:230px;transform-style:preserve-3d;transition:transform .52s cubic-bezier(.4,0,.2,1);}
+.card-inner{position:relative;width:100%;transform-style:preserve-3d;transition:transform .52s cubic-bezier(.4,0,.2,1);}
 .card-inner.flipped{transform:rotateY(180deg);}
-.card-face{position:absolute;width:100%;min-height:230px;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:1.8rem 2rem;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 4px rgba(0,0,0,.05);}
+/* Both faces absolutely positioned for 3D flip, but card-sizer (invisible) sets the container height */
+.card-face{position:absolute;top:0;left:0;width:100%;min-height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:1.8rem 2rem;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 4px rgba(0,0,0,.05);}
 .card-back{transform:rotateY(180deg);}
+/* Invisible element that takes up the height of whichever face is taller, so card-inner grows */
+.card-sizer{visibility:hidden;pointer-events:none;padding:1.8rem 2rem;display:flex;flex-direction:column;justify-content:space-between;}
 .card-lang{font-family:'JetBrains Mono',monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);}
 .card-word{font-size:2.1rem;font-weight:500;color:var(--text);text-align:center;flex:1;display:flex;align-items:center;justify-content:center;line-height:1.3;padding:.8rem 0;}
 .card-meanings{flex:1;display:flex;flex-direction:column;justify-content:center;gap:.5rem;padding:.5rem 0;overflow-y:auto;}
@@ -215,7 +218,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
     <div class="login-sub">Personal language flashcards</div>
     <div class="login-form">
       <input type="email" id="li-email" placeholder="Email address" autocomplete="username">
-      <input type="password" id="li-pass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <input type="password" id="li-pass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key===&#39;Enter&#39;)doLogin()">
       <div class="login-err" id="li-err"></div>
       <button class="login-btn" onclick="doLogin()">Sign in</button>
     </div>
@@ -223,17 +226,17 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
   </div>
 </div>
 
-<div id="shell">
+<div id="shell" style="display: flex;">
   <nav class="nav">
     <span class="nav-logo">Flash &amp; Shine</span>
     <div class="nav-right">
       <div class="nav-tabs">
-        <button class="nav-tab active" onclick="showScreen('review')">Review</button>
-        <button class="nav-tab" onclick="showScreen('manage')">Cards</button>
-        <button class="nav-tab" onclick="showScreen('upload')">Import</button>
-        <button class="nav-tab" onclick="showScreen('stats')">Stats</button>
+        <button class="nav-tab active" onclick="showScreen(&#39;review&#39;)">Review</button>
+        <button class="nav-tab" onclick="showScreen(&#39;manage&#39;)">Cards</button>
+        <button class="nav-tab" onclick="showScreen(&#39;upload&#39;)">Import</button>
+        <button class="nav-tab" onclick="showScreen(&#39;stats&#39;)">Stats</button>
       </div>
-      <span class="nav-user" id="nav-user"></span>
+      <span class="nav-user" id="nav-user">local mode</span>
       <button class="btn btn-ghost btn-sm" onclick="doSignOut()">Sign out</button>
     </div>
   </nav>
@@ -241,16 +244,45 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
 
     <!-- REVIEW -->
     <div id="screen-review" class="screen active">
-      <div class="setup-banner" id="setup-banner" style="display:none">
+      <div class="setup-banner" id="setup-banner" style="display: block;">
         <strong style="color:var(--accent)">Local mode</strong> — data stays in this browser only. Add Firebase config to <code>FIREBASE_CONFIG</code> and follow SETUP.md to sync.
-        <a href="#" onclick="document.getElementById('setup-banner').style.display='none';return false" style="color:var(--accent);margin-left:.4rem">Dismiss</a>
+        <a href="file:///Users/alpanastasia/Downloads/flash_and_shine.html#" onclick="document.getElementById(&#39;setup-banner&#39;).style.display=&#39;none&#39;;return false" style="color:var(--accent);margin-left:.4rem">Dismiss</a>
       </div>
       <!-- Pre-review setup (shown when not in active session) -->
-      <div id="prereview-wrap"></div>
+      <div id="prereview-wrap" style="display: block;">
+    <div class="prereview">
+      <div class="prereview-section">
+        <div class="prereview-label">Deck</div>
+        <div class="pill-row" style="margin:0"><button class="pill" onclick="selectPreDeck(&#39;mnm9pc8pwgew&#39;)">Czech</button></div>
+      </div>
+      <div class="prereview-section">
+        <div class="prereview-label">Direction</div>
+        <div class="pill-row" style="margin:0"><span style="color:var(--text3);font-size:.82rem">Select a deck first</span></div>
+      </div>
+      <div class="prereview-section">
+        <div class="prereview-label">Filter by progress</div>
+        <div class="pill-row" style="margin:0;margin-bottom:.4rem"><button class="pill pn" onclick="tglFPre(&#39;new&#39;,this)">New</button><button class="pill pf" onclick="tglFPre(&#39;fail&#39;,this)">Failing</button><button class="pill pf" onclick="tglFPre(&#39;vhard&#39;,this)">Very Hard</button><button class="pill ph" onclick="tglFPre(&#39;hard&#39;,this)">Hard</button><button class="pill pg" onclick="tglFPre(&#39;good&#39;,this)">Good</button><button class="pill pe" onclick="tglFPre(&#39;easy&#39;,this)">Easy</button></div>
+        <span style="font-family:&#39;JetBrains Mono&#39;,monospace;font-size:.6rem;color:var(--text3)">Leave all unselected to review all due cards</span>
+      </div>
+      <div class="prereview-section">
+        <div class="prereview-label">Filter by tag</div>
+        <div class="pill-row" style="margin:0"><button class="pill" onclick="tglFTpre(&#39;adjective&#39;,this)">adjective</button><button class="pill" onclick="tglFTpre(&#39;adverb&#39;,this)">adverb</button><button class="pill" onclick="tglFTpre(&#39;family&#39;,this)">family</button><button class="pill" onclick="tglFTpre(&#39;feminine&#39;,this)">feminine</button><button class="pill" onclick="tglFTpre(&#39;geography&#39;,this)">geography</button><button class="pill" onclick="tglFTpre(&#39;mascilune&#39;,this)">mascilune</button><button class="pill" onclick="tglFTpre(&#39;masculine&#39;,this)">masculine</button><button class="pill" onclick="tglFTpre(&#39;mini-word (pronouns, interjections, etc)&#39;,this)">mini-word (pronouns, interjections, etc)</button><button class="pill" onclick="tglFTpre(&#39;neuter&#39;,this)">neuter</button><button class="pill" onclick="tglFTpre(&#39;noun&#39;,this)">noun</button><button class="pill" onclick="tglFTpre(&#39;phrase&#39;,this)">phrase</button><button class="pill" onclick="tglFTpre(&#39;plural&#39;,this)">plural</button><button class="pill" onclick="tglFTpre(&#39;salutation&#39;,this)">salutation</button><button class="pill" onclick="tglFTpre(&#39;verb&#39;,this)">verb</button></div>
+      </div>
+      <div class="prereview-section">
+        <div class="prereview-label">Word cap (leave empty for all)</div>
+        <input type="number" class="cap-input" id="cap-input" value="" min="1" placeholder="e.g. 200" oninput="saveCap(this.value)" style="max-width:180px">
+      </div>
+      <div class="prereview-summary" id="pre-summary">
+        <strong>0</strong> cards in queue (due now)
+      </div>
+      <button class="start-btn" onclick="startSession()" disabled="">
+        Start Review
+      </button>
+    </div></div>
       <!-- Active review (shown during session) -->
       <div id="active-review-wrap" style="display:none">
         <div class="row" style="margin-bottom:1rem">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:.67rem;color:var(--text3)" id="rev-session-lbl"></span>
+          <span style="font-family:&#39;JetBrains Mono&#39;,monospace;font-size:.67rem;color:var(--text3)" id="rev-session-lbl"></span>
           <div class="spacer"></div>
           <button class="btn btn-ghost btn-sm" onclick="endSession()">← Back</button>
         </div>
@@ -278,14 +310,14 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
       <div class="row" style="margin-bottom:1.2rem"><span class="stitle" style="margin:0">Import CSV</span></div>
       <div class="fg"><label>Target Deck</label><select id="up-deck"></select></div>
       <div class="fg"><label>Or create new deck</label><input type="text" id="up-new-deck" placeholder="Deck name (leave blank to use selected)"></div>
-      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('csv-file').click()">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById(&#39;csv-file&#39;).click()">
         <p>Drop a CSV file here or click to browse</p>
         <small>Foreign, Translation, Tags, Example_Foreign, Example_Translation</small>
         <input type="file" id="csv-file" accept=".csv" style="display:none" onchange="handleFile(event)">
       </div>
       <div id="up-preview"></div>
       <div class="divider"></div>
-      <p style="font-family:'JetBrains Mono',monospace;font-size:.67rem;line-height:2;color:var(--text3)">
+      <p style="font-family:&#39;JetBrains Mono&#39;,monospace;font-size:.67rem;line-height:2;color:var(--text3)">
         CSV notes:<br>
         — Header row skipped<br>
         — Multiple meanings: pipe (|) in Translation column — e.g. жребий|лось<br>
@@ -318,7 +350,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
       </label>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('mod-deck')">Cancel</button>
+      <button class="btn" onclick="closeModal(&#39;mod-deck&#39;)">Cancel</button>
       <button class="btn btn-primary" onclick="saveDeck()">Create</button>
     </div>
   </div>
@@ -337,14 +369,14 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
     <button class="btn btn-sm" style="margin-bottom:1rem" onclick="addMeaning()">+ Add meaning</button>
     <div class="fg">
       <label>Tags (Enter or comma to add)</label>
-      <div class="tag-row" id="tag-row" onclick="document.getElementById('tag-inp').focus()">
+      <div class="tag-row" id="tag-row" onclick="document.getElementById(&#39;tag-inp&#39;).focus()">
         <input type="text" id="tag-inp" placeholder="noun, family…" onkeydown="onTagKey(event)" style="border:none;background:none;width:auto;min-width:80px;">
       </div>
       <div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:.35rem" id="tag-sugg"></div>
     </div>
     <input type="hidden" id="c-editid">
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('mod-card')">Cancel</button>
+      <button class="btn" onclick="closeModal(&#39;mod-card&#39;)">Cancel</button>
       <button class="btn btn-primary" onclick="saveCard()">Save</button>
     </div>
   </div>
@@ -356,7 +388,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
     <div class="modal-title">Synonyms of "<span id="syn-of-word"></span>"</div>
     <div class="fg"><input type="text" id="syn-search" placeholder="Search cards…" oninput="renderSynSearch()"></div>
     <div id="syn-search-results" style="max-height:320px;overflow-y:auto;margin-top:.3rem"></div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('mod-syn')">Close</button></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal(&#39;mod-syn&#39;)">Close</button></div>
   </div>
 </div>
 
@@ -366,7 +398,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
     <div class="modal-title" id="wl-title">Words</div>
     <div class="scrollable" id="wl-content"></div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('mod-wl')">Close</button>
+      <button class="btn" onclick="closeModal(&#39;mod-wl&#39;)">Close</button>
       <button class="btn btn-primary" id="wl-rev-btn" style="display:none">Review these</button>
     </div>
   </div>
@@ -378,7 +410,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
     <div class="modal-title" style="color:var(--fail)" id="conf-title">Delete?</div>
     <p class="text-muted" id="conf-msg"></p>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('mod-confirm')">Cancel</button>
+      <button class="btn" onclick="closeModal(&#39;mod-confirm&#39;)">Cancel</button>
       <button class="btn btn-danger" id="conf-ok">Delete</button>
     </div>
   </div>
@@ -388,16 +420,16 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
   <div class="modal" style="max-width:360px">
     <div class="modal-title">Rename tag</div>
     <p class="text-muted" style="margin-bottom:.8rem;font-size:.82rem">Renaming will update all cards that have this tag.</p>
-    <div class="fg"><label>New name</label><input type="text" id="rename-tag-input" placeholder="new name" onkeydown="if(event.key==='Enter')doRenameTag()"></div>
+    <div class="fg"><label>New name</label><input type="text" id="rename-tag-input" placeholder="new name" onkeydown="if(event.key===&#39;Enter&#39;)doRenameTag()"></div>
     <input type="hidden" id="rename-tag-old">
-    <div class="modal-footer"><button class="btn" onclick="closeModal('mod-rename-tag')">Cancel</button><button class="btn btn-primary" onclick="doRenameTag()">Rename</button></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal(&#39;mod-rename-tag&#39;)">Cancel</button><button class="btn btn-primary" onclick="doRenameTag()">Rename</button></div>
   </div>
 </div>
-<div class="notif" id="notif"></div>
+<div class="notif" id="notif">Migrated existing cards.</div>
 
 <script>
 // ═══ FIREBASE CONFIG ════════════════════════════════
-const FIREBASE_CONFIG = {
+const FIREBASE_CONFIG={
   apiKey: "AIzaSyC-XeOR_tPwAR0kVFC2EER-msRpKy3jauY",
   authDomain: "flash-n-shine.firebaseapp.com",
   projectId: "flash-n-shine",
@@ -721,6 +753,12 @@ function renderCard(){
           ${backHtml}
           <div class="card-footer"><span class="flip-hint">click to flip back</span></div>
         </div>
+        <!-- Sizer: invisible, drives container height to fit the taller face -->
+        <div class="card-sizer" aria-hidden="true">
+          <span class="card-lang" style="opacity:0">x</span>
+          ${backHtml}
+          <div class="card-footer"><span class="flip-hint" style="opacity:0">x</span></div>
+        </div>
       </div>
     </div>
     ${synHtml}${hintSec}
@@ -953,5 +991,6 @@ function migrate(){
 
 initFirebase();
 </script>
-</body>
-</html>
+
+
+</body></html>
