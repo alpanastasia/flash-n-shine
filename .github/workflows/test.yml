@@ -1,0 +1,10 @@
+name: Test Secret
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Use secret
+        run: echo "My secret is ${{ secrets.FIREBASE_CONFIG }}"
