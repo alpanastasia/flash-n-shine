@@ -434,7 +434,17 @@ async function initFirebase(){
     fbDocFn=fs.doc;fbGetDoc=fs.getDoc;fbSetDoc=fs.setDoc;
     window._fbSI=(a,e,p)=>au.signInWithEmailAndPassword(a,e,p);
     window._fbSO=a=>au.signOut(a);
-    au.onAuthStateChanged(fbAuth,async u=>{if(u){currentUser=u;await loadCloud();bootApp();}else showLogin();});
+    au.onAuthStateChanged(fbAuth,async u=>{
+      if(u){
+        const lastUid=localStorage.getItem('flashshine_last_uid');
+        const userChanged=lastUid && lastUid!==u.uid;
+        currentUser=u;
+        await loadCloud();
+        // If switching users, reload the page so all in-memory state is clean
+        if(userChanged){location.reload();return;}
+        bootApp();
+      }else showLogin();
+    });
   }catch(e){console.error('Firebase:',e);bootLocal();}
 }
 async function doLogin(){
