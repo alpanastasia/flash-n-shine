@@ -429,7 +429,14 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
 
 <script>
 // ═══ FIREBASE CONFIG ════════════════════════════════
-const FIREBASE_CONFIG=${{ secrets.FIREBASE_CONFIG }};
+const FIREBASE_CONFIG={
+  apiKey: "AIzaSyC-XeOR_tPwAR0kVFC2EER-msRpKy3jauY",
+  authDomain: "flash-n-shine.firebaseapp.com",
+  projectId: "flash-n-shine",
+  storageBucket: "flash-n-shine.firebasestorage.app",
+  messagingSenderId: "617496968515",
+  appId: "1:617496968515:web:185382befa720acdfdc3f6"
+};
 const FB_ON=FIREBASE_CONFIG.apiKey!=="";
 
 // ═══ LOCAL STORAGE ═══════════════════════════════════
