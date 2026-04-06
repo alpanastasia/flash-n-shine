@@ -446,15 +446,22 @@ async function doLogin(){
 async function doSignOut(){if(FB_ON&&fbAuth)await window._fbSO(fbAuth);else showLogin();}
 async function loadCloud(){
   try{
-    // If a different user was here before, wipe localStorage so their data doesn't leak
     const lastUid=localStorage.getItem('flashshine_last_uid');
-    if(lastUid && lastUid!==currentUser.uid){
+    const userChanged=lastUid && lastUid!==currentUser.uid;
+    if(userChanged){
+      // Different user — wipe everything local so nothing leaks
       localStorage.removeItem('flashshine_v5');
-      db=loadLocal();
+      db={decks:[],cards:[],progress:{},synLinks:[],synIgnore:[],deckCaps:{},pendingDups:[]};
       console.log('Cleared localStorage for new user');
     }
     localStorage.setItem('flashshine_last_uid',currentUser.uid);
-    await loadFromFirestore();
+    const loaded=await loadFromFirestore();
+    if(!loaded){
+      // No Firestore document for this user yet — start completely fresh
+      db={decks:[],cards:[],progress:{},synLinks:[],synIgnore:[],deckCaps:{},pendingDups:[]};
+      saveLocal(db);
+      console.log('New user — starting with empty data');
+    }
   }catch(e){console.error('Load:',e);}
 }
 function scheduleSave(){
