@@ -589,10 +589,23 @@ function doRenameTag(){
 // ═══ SYNONYM ENGINE ══════════════════════════════════
 // Tokenise by splitting on comma, semicolon, slash, pipe only — NOT on spaces.
 // This keeps "дать возможность" as a single token.
-function tokenize(s){
-  return(s||'').toLowerCase()
-    .split(/[,;\/|]+/)
+// Within each token, parenthetical content (…) is stripped before comparison,
+// and any non-apostrophe punctuation is stripped.
+function tokenizeRaw(s){
+  return(s||'').split(/[,;\/|]+/)
     .map(t=>t.trim())
+    .filter(t=>t.length>=1);
+}
+function normalizeToken(t){
+  // Remove parenthetical groups and their content
+  t=t.replace(/\([^)]*\)/g,'');
+  // Remove any non-letter, non-apostrophe, non-space characters
+  t=t.replace(/[^\p{L}\p{M}' ]/gu,'');
+  return t.trim().toLowerCase();
+}
+function tokenize(s){
+  return tokenizeRaw(s)
+    .map(t=>normalizeToken(t))
     .filter(t=>t.length>=2);
 }
 function synKey(a,b){return[a,b].sort().join('::');}
@@ -637,13 +650,17 @@ function findMatchingMeaning(card,sharedTokens){
   return meanings[0]||{wordB:''};
 }
 
-// Highlight shared tokens within a translation string
+// Highlight shared tokens within a translation string.
+// We match the raw segments of the displayed string that normalize to a shared token.
 function highlightShared(wordB,sharedTokens){
   let result=esc(wordB);
-  sharedTokens.forEach(t=>{
-    // Escape for regex, then replace with highlighted version
-    const escaped=t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    result=result.replace(new RegExp('('+escaped+')','gi'),'<span class="syn-shared-highlight">$1</span>');
+  // For each raw segment, check if it normalizes to a shared token, then highlight the whole segment
+  tokenizeRaw(wordB).forEach(raw=>{
+    const norm=normalizeToken(raw);
+    if(sharedTokens.includes(norm)){
+      const escaped=raw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      result=result.replace(new RegExp('('+escaped+')','gi'),'<span class="syn-shared-highlight">$1</span>');
+    }
   });
   return result;
 }
@@ -988,8 +1005,16 @@ function renderManage(){
   else if(S.manageTags.size)cards=cards.filter(c=>[...S.manageTags].every(t=>(c.tags||[]).includes(t)));
 
   if(cards.length===0&&db.cards.filter(c=>c.deckId===S.deckId).length===0){
-    // Deck is truly empty
-    content.innerHTML=`<div class="empty-state"><p>No cards in this deck.</p><button class="btn btn-primary" onclick="openCardModal()">+ Add Card</button></div>`;return;
+    // Deck is truly empty — still show rename/delete buttons
+    content.innerHTML=`
+      <div class="row" style="margin-bottom:.6rem">
+        <span class="text-muted" style="font-size:.78rem">0 cards · <em>${esc(deck.name)}</em></span>
+        <div class="spacer"></div>
+        <button class="btn btn-sm" onclick="openDeckModal('${deck.id}')">Rename deck</button>
+        <button class="btn btn-sm btn-danger" style="margin-left:.3rem" onclick="confirmDelDeck('${deck.id}')">Delete deck</button>
+      </div>
+      <div class="empty-state"><p>No cards in this deck.</p><button class="btn btn-primary" onclick="openCardModal()">+ Add Card</button></div>`;
+    return;
   }
 
   const rows=cards.map(c=>{
@@ -1110,7 +1135,16 @@ function saveCard(){
   if(!wordA||!S.editMeanings[0]?.wordB?.trim()){notify('Foreign word and at least one translation are required.');return;}
   const meanings=S.editMeanings.map(m=>({wordB:(m.wordB||'').trim(),exA:(m.exA||'').trim(),exB:(m.exB||'').trim()})).filter(m=>m.wordB);
   if(editId){const c=db.cards.find(x=>x.id===editId);if(c){c.wordA=wordA;c.meanings=meanings;c.tags=[...S.editTags];c.deckId=deckId;}}
-  else db.cards.push({id:uid(),deckId,wordA,meanings,tags:[...S.editTags]});
+  else{
+    // Duplicate check for new cards
+    const existing=db.cards.find(c=>c.deckId===deckId&&c.wordA.toLowerCase()===wordA.toLowerCase());
+    if(existing){
+      db.pendingDups.push({existingId:existing.id,incoming:{wordA,meanings,tags:[...S.editTags]}});
+      scheduleSave();closeModal('mod-card');notify('Duplicate detected — review in Cards tab.');
+      showScreen('manage');return;
+    }
+    db.cards.push({id:uid(),deckId,wordA,meanings,tags:[...S.editTags]});
+  }
   scheduleSave();closeModal('mod-card');notify(editId?'Card updated.':'Card added.');renderManage();
 }
 function onTagKey(e){
