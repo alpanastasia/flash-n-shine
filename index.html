@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flash & Shine</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%238c6d2f'/><text x='16' y='23' text-anchor='middle' font-size='20' font-family='Georgia,serif' fill='white'>✦</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="shortcut icon" href="#">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#f7f5f0;--bg2:#fff;--bg3:#f0ede6;--bg4:#e6e2d8;--border:#ddd9ce;--border2:#ccc8bc;--text:#1a1816;--text2:#6b6660;--text3:#a09a90;--accent:#8c6d2f;--accent2:#b08840;--fail:#b03030;--fail-bg:#fdf0f0;--fail-bd:#e8b0b0;--hard:#b05a00;--hard-bg:#fdf4ee;--hard-bd:#f0c090;--good:#2a7a3a;--good-bg:#f0faf2;--good-bd:#a0d8b0;--easy:#2a54a0;--easy-bg:#f0f4fd;--easy-bd:#a0b8e8;--r:12px;--rs:8px;}
@@ -236,7 +236,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
         <div class="row" style="margin-bottom:1rem">
           <span style="font-family:'JetBrains Mono',monospace;font-size:.67rem;color:var(--text3)" id="rev-session-lbl"></span>
           <div class="spacer"></div>
-          <button class="btn btn-ghost btn-sm" onclick="endSession()">← Back</button>
+          <button class="btn btn-ghost btn-sm" onclick="endSession()" title="Save progress and return to setup">Finish review</button>
         </div>
         <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
         <div id="review-content"></div>
@@ -384,14 +384,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
 
 <script>
 // ═══ FIREBASE CONFIG — paste your values here ═══════
-const FIREBASE_CONFIG={
-  apiKey: "AIzaSyC-XeOR_tPwAR0kVFC2EER-msRpKy3jauY",
-  authDomain: "flash-n-shine.firebaseapp.com",
-  projectId: "flash-n-shine",
-  storageBucket: "flash-n-shine.firebasestorage.app",
-  messagingSenderId: "617496968515",
-  appId: "1:617496968515:web:185382befa720acdfdc3f6"
-};
+const FIREBASE_CONFIG={apiKey:"",authDomain:"",projectId:"",storageBucket:"",messagingSenderId:"",appId:""};
 const FB_ON=FIREBASE_CONFIG.apiKey!=="";
 
 // ═══ LOCAL STORAGE ═══════════════════════════════════
@@ -442,7 +435,10 @@ async function doLogin(){
   try{await window._fbSI(fbAuth,email,pass);}
   catch(e){err.textContent=e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'?'Incorrect email or password.':e.message;}
 }
-async function doSignOut(){if(FB_ON&&fbAuth)await window._fbSO(fbAuth);else showLogin();}
+async function doSignOut(){
+  if(S.sessionActive)saveProgressToFirestore();
+  if(FB_ON&&fbAuth)await window._fbSO(fbAuth);else showLogin();
+}
 
 async function loadCloud(){
   try{
@@ -464,12 +460,12 @@ function scheduleSave(){
   saveTimer=setTimeout(()=>saveToFirestore(),1500);
 }
 
+// Save everything (cards + metadata) — called when non-progress data changes
 async function saveToFirestore(){
   if(!FB_ON||!currentUser||currentUser.uid==='local')return;
   const uid=currentUser.uid;
   try{
     const CHUNK=200,cards=db.cards||[];
-    // Safety guard: refuse to overwrite real data with empty cards
     if(cards.length===0){
       const snap=await fbGetDoc(fbDocFn(fbDb,'users',uid));
       if(snap.exists()&&(snap.data().numCardChunks||0)>0){
@@ -485,9 +481,27 @@ async function saveToFirestore(){
     for(let i=0;i<numChunks;i++){
       await fbSetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,`cards_${i}`),{cards:cards.slice(i*CHUNK,(i+1)*CHUNK)});
     }
-    await fbSetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,'progress'),{progress:db.progress||{}});
     console.log(`Saved: ${cards.length} cards`);
   }catch(e){console.error('Save failed:',e);}
+}
+
+// Save only progress — called at session end. Progress split into 500-key chunks.
+async function saveProgressToFirestore(){
+  saveLocal(db);
+  if(!FB_ON||!currentUser||currentUser.uid==='local')return;
+  const uid=currentUser.uid;
+  const PCHUNK=500;
+  const entries=Object.entries(db.progress||{});
+  const numChunks=Math.ceil(entries.length/PCHUNK)||1;
+  try{
+    // Write updated numProgChunks into main doc
+    await fbSetDoc(fbDocFn(fbDb,'users',uid),{numProgChunks:numChunks,_pts:Date.now()},{merge:true});
+    for(let i=0;i<numChunks;i++){
+      const slice=Object.fromEntries(entries.slice(i*PCHUNK,(i+1)*PCHUNK));
+      await fbSetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,`progress_${i}`),{progress:slice});
+    }
+    console.log(`Progress saved: ${entries.length} keys in ${numChunks} chunk(s)`);
+  }catch(e){console.error('Progress save failed:',e);}
 }
 
 async function loadFromFirestore(){
@@ -497,18 +511,30 @@ async function loadFromFirestore(){
     const mainSnap=await fbGetDoc(fbDocFn(fbDb,'users',uid));
     if(!mainSnap.exists())return false;
     const main=mainSnap.data();
-    // Probe all chunks sequentially (handles orphaned chunks from previous saves)
+    // Load card chunks
     let cards=[],i=0;
     while(true){
       const snap=await fbGetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,`cards_${i}`));
       if(!snap.exists())break;
       cards=cards.concat(snap.data().cards||[]);
-      i++;if(i>20)break; // hard limit
+      i++;if(i>20)break;
     }
-    const progSnap=await fbGetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,'progress'));
+    // Load progress chunks — probe new chunked format first, fall back to legacy single doc
+    let progress={};
+    const numProgChunks=main.numProgChunks||0;
+    if(numProgChunks>0){
+      for(let j=0;j<numProgChunks+5;j++){// +5 to catch any orphaned chunks
+        const snap=await fbGetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,`progress_${j}`));
+        if(!snap.exists())break;
+        Object.assign(progress,snap.data().progress||{});
+      }
+    }else{
+      // Legacy: single progress document
+      const progSnap=await fbGetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,'progress'));
+      if(progSnap.exists())progress=progSnap.data().progress||{};
+    }
     db={
-      decks:main.decks||[],cards,
-      progress:progSnap.exists()?progSnap.data().progress||{}:{},
+      decks:main.decks||[],cards,progress,
       synLinks:main.synLinks||[],synIgnore:main.synIgnore||[],
       deckCaps:main.deckCaps||{},pendingDups:main.pendingDups||[]
     };
@@ -739,6 +765,8 @@ const S={
 
 // ═══ NAV ══════════════════════════════════════════════
 function showScreen(name){
+  // Save progress if leaving review mid-session
+  if(S.sessionActive&&name!=='review')saveProgressToFirestore();
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
@@ -801,8 +829,8 @@ function selectPreDeck(id){
 }
 function setPreDir(dir){S.dir=dir;renderPreReview();}
 function tglFPre(k,el){S.filterProg.has(k)?S.filterProg.delete(k):S.filterProg.add(k);el.classList.toggle('active');updatePreSummary();}
-function tglFTpre(t,el){S.filterTags.has(t)?S.filterTags.delete(t):S.filterTags.add(t);S.filterNoTags=false;el.classList.toggle('active');updatePreSummary();}
-function tglFNoTagPre(el){S.filterNoTags=!S.filterNoTags;S.filterTags.clear();el.classList.toggle('active');updatePreSummary();}
+function tglFTpre(t,el){S.filterTags.has(t)?S.filterTags.delete(t):S.filterTags.add(t);el.classList.toggle('active');updatePreSummary();}
+function tglFNoTagPre(el){S.filterNoTags=!S.filterNoTags;el.classList.toggle('active');updatePreSummary();}
 function saveCap(v){if(S.deckId!==null)db.deckCaps[S.deckId]=v?Math.max(1,parseInt(v)||1):'';scheduleSave();}
 function previewQueueCount(){
   if(!S.deckId)return 0;
@@ -821,9 +849,21 @@ function updatePreSummary(){
   if(b){b.disabled=count===0;b.textContent='Start Review'+(count>0?` (${count} cards)`:'');}
 }
 function applyTagFilter(cards,filterTags,filterNoTags){
-  if(filterNoTags)return cards.filter(c=>!(c.tags&&c.tags.length));
-  if(filterTags.size)return cards.filter(c=>[...filterTags].every(t=>(c.tags||[]).includes(t)));
-  return cards;
+  if(!filterTags.size&&!filterNoTags)return cards;
+  // Group selected tags by type: pos / gender / topic
+  const byType={pos:[],gender:[],topic:[]};
+  [...filterTags].forEach(t=>byType[tagClass(t)].push(t));
+  const hasTagFilter=filterTags.size>0;
+  return cards.filter(c=>{
+    const ct=c.tags||[];
+    const noTagsMatch=filterNoTags&&ct.length===0;
+    if(!hasTagFilter)return noTagsMatch;
+    // AND between non-empty groups, OR within each group
+    const tagMatch=Object.values(byType).every(group=>
+      group.length===0||group.some(t=>ct.includes(t))
+    );
+    return tagMatch||(filterNoTags&&ct.length===0);
+  });
 }
 
 // ═══ QUEUE & SESSION ══════════════════════════════════
@@ -853,7 +893,6 @@ function startSession(){
   renderCard();
 }
 function showActiveReview(){document.getElementById('prereview-wrap').style.display='none';document.getElementById('active-review-wrap').style.display='block';}
-function endSession(){S.sessionActive=false;renderPreReview();}
 
 // ═══ RENDER CARD ══════════════════════════════════════
 let timerRaf=null;
@@ -925,8 +964,11 @@ function renderCard(){
 }
 function sessionDone(){
   document.getElementById('prog-fill').style.width='100%';
+  S.sessionActive=false;
+  saveProgressToFirestore();
   document.getElementById('review-content').innerHTML=`<div class="done-box"><div class="done-icon">✓</div><div class="done-title">Session complete</div><div class="done-sub">All ${S.queue.length} cards reviewed.</div><button class="btn btn-primary" style="margin-top:.5rem" onclick="endSession()">Back to setup</button></div>`;
 }
+function endSession(){if(S.sessionActive){S.sessionActive=false;saveProgressToFirestore();}renderPreReview();}
 function tickTimer(){const el=document.getElementById('tfill');if(!el)return;const e=Date.now()-S.startTime,p=Math.min(1,e/30000);el.style.width=(100-p*100)+'%';el.style.background=e<5000?'var(--good)':e<15000?'#c08020':'var(--fail)';if(!S.flipped)timerRaf=requestAnimationFrame(tickTimer);}
 function flipCard(){
   const inn=document.getElementById('cinn');if(!inn)return;
@@ -946,7 +988,7 @@ function toggleHint(ev){
 function rate(quality){
   const{key}=S.queue[S.qi];const tm=Date.now()-S.startTime;
   let q=quality;if(S.hintUsed){if(q===4)q=2;else if(q===2)q=1;}
-  applyRating(key,q,tm);scheduleSave();S.qi++;renderCard();
+  applyRating(key,q,tm);saveLocal(db);S.qi++;renderCard();
 }
 
 // ═══ MANAGE ═══════════════════════════════════════════
@@ -1002,8 +1044,7 @@ function renderManage(){
   }
 
   // Apply filter
-  if(S.manageNoTags)cards=cards.filter(c=>!(c.tags&&c.tags.length));
-  else if(S.manageTags.size)cards=cards.filter(c=>[...S.manageTags].every(t=>(c.tags||[]).includes(t)));
+  cards=applyTagFilter(cards,S.manageTags,S.manageNoTags);
 
   if(cards.length===0&&db.cards.filter(c=>c.deckId===S.deckId).length===0){
     // Deck is truly empty — still show rename/delete buttons
@@ -1048,8 +1089,8 @@ function renderManage(){
       <tbody>${rows||'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:1rem">No cards match filter</td></tr>'}</tbody>
     </table></div>`;
 }
-function tglMTag(t,el){S.manageTags.has(t)?S.manageTags.delete(t):S.manageTags.add(t);S.manageNoTags=false;el.classList.toggle('active');renderManage();}
-function tglMNoTag(el){S.manageNoTags=!S.manageNoTags;S.manageTags.clear();el.classList.toggle('active');renderManage();}
+function tglMTag(t,el){S.manageTags.has(t)?S.manageTags.delete(t):S.manageTags.add(t);el.classList.toggle('active');renderManage();}
+function tglMNoTag(el){S.manageNoTags=!S.manageNoTags;el.classList.toggle('active');renderManage();}
 
 // ═══ SYNONYM MODAL ════════════════════════════════════
 function openSynModal(cardId){
@@ -1363,6 +1404,13 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id);}));
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let nT;function notify(msg){const el=document.getElementById('notif');el.textContent=msg;el.classList.add('show');clearTimeout(nT);nT=setTimeout(()=>el.classList.remove('show'),2800);}
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'&&S.sessionActive)saveProgressToFirestore();
+});
+window.addEventListener('beforeunload',()=>{
+  if(S.sessionActive){saveLocal(db);}// Firestore async may not complete, but localStorage will
+});
 
 document.addEventListener('keydown',e=>{
   if(document.querySelector('.mo.open'))return;
