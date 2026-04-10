@@ -210,7 +210,7 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
   </div>
 </div>
 
-<div id="shell">
+<div id="shell" style="display:none">
   <nav class="nav">
     <span class="nav-logo">Flash &amp; Shine</span>
     <div class="nav-right">
@@ -235,6 +235,8 @@ textarea{resize:vertical;min-height:50px;}select option{background:var(--bg2);}
       <div id="active-review-wrap" style="display:none">
         <div class="row" style="margin-bottom:1rem">
           <span style="font-family:'JetBrains Mono',monospace;font-size:.67rem;color:var(--text3)" id="rev-session-lbl"></span>
+          <div class="spacer"></div>
+          <button class="btn btn-sm" style="border-color:var(--accent);color:#fff;background:var(--accent)" onclick="endSession()">Finish review</button>
         </div>
         <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
         <div id="review-content"></div>
@@ -408,6 +410,10 @@ let fbAuth=null,fbDb=null,fbDocFn=null,fbGetDoc=null,fbSetDoc=null,currentUser=n
 
 async function initFirebase(){
   if(!FB_ON){bootLocal();return;}
+  // Safety net: if auth never resolves (mobile network stall), show login after 8s
+  const safetyTimer=setTimeout(()=>{
+    if(!currentUser&&document.getElementById('login-wrap').style.display!=='flex')showLogin();
+  },8000);
   try{
     const[am,au,fs]=await Promise.all([
       import('https://cdn.jsdelivr.net/npm/firebase@10.12.0/app/+esm'),
@@ -420,6 +426,7 @@ async function initFirebase(){
     window._fbSI=(a,e,p)=>au.signInWithEmailAndPassword(a,e,p);
     window._fbSO=a=>au.signOut(a);
     au.onAuthStateChanged(fbAuth,async u=>{
+      clearTimeout(safetyTimer);
       if(u){
         const lastUid=localStorage.getItem('flashshine_last_uid');
         const userChanged=lastUid&&lastUid!==u.uid;
@@ -429,7 +436,7 @@ async function initFirebase(){
         bootApp();
       }else showLogin();
     });
-  }catch(e){console.error('Firebase:',e);bootLocal();}
+  }catch(e){clearTimeout(safetyTimer);console.error('Firebase:',e);bootLocal();}
 }
 
 async function doLogin(){
@@ -455,7 +462,12 @@ async function loadCloud(){
     localStorage.setItem('flashshine_last_uid',currentUser.uid);
     const loaded=await loadFromFirestore();
     if(!loaded){db=emptyDb();saveLocal(db);}
-  }catch(e){console.error('Load:',e);}
+  }catch(e){
+    console.error('Load:',e);
+    // Never leave the screen blank — fall back to whatever is in localStorage
+    db=loadLocal();
+    if(!db.decks)db=emptyDb();
+  }
 }
 
 function scheduleSave(){
@@ -482,7 +494,7 @@ async function saveToFirestore(){
       decks:db.decks||[],synLinks:db.synLinks||[],synIgnore:db.synIgnore||[],
       deckCaps:db.deckCaps||{},pendingDups:db.pendingDups||[],
       numCardChunks:numChunks,_ts:Date.now()
-    });
+    },{merge:true});// merge:true preserves numProgChunks written by saveProgressToFirestore
     for(let i=0;i<numChunks;i++){
       await fbSetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,`cards_${i}`),{cards:cards.slice(i*CHUNK,(i+1)*CHUNK)});
     }
@@ -524,17 +536,20 @@ async function loadFromFirestore(){
       cards=cards.concat(snap.data().cards||[]);
       i++;if(i>20)break;
     }
-    // Load progress chunks — probe new chunked format first, fall back to legacy single doc
+    // Load progress chunks — probe sequentially up to a hard limit.
+    // Always probe even if numProgChunks is 0 (it may have been wiped by a bad save).
     let progress={};
     const numProgChunks=main.numProgChunks||0;
-    if(numProgChunks>0){
-      for(let j=0;j<numProgChunks+5;j++){// +5 to catch any orphaned chunks
-        const snap=await fbGetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,`progress_${j}`));
-        if(!snap.exists())break;
-        Object.assign(progress,snap.data().progress||{});
-      }
-    }else{
-      // Legacy: single progress document
+    const maxProbe=Math.max(numProgChunks+5,10);
+    let foundNew=false;
+    for(let j=0;j<maxProbe;j++){
+      const snap=await fbGetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,`progress_${j}`));
+      if(!snap.exists())break;
+      Object.assign(progress,snap.data().progress||{});
+      foundNew=true;
+    }
+    // Fall back to legacy single-doc format only if no chunked progress found
+    if(!foundNew){
       const progSnap=await fbGetDoc(fbDocFn(fbDb,`users/${uid}/chunks`,'progress'));
       if(progSnap.exists())progress=progSnap.data().progress||{};
     }
@@ -952,7 +967,7 @@ function renderCard(){
         </div>
         <div class="card-sizer" aria-hidden="true">
           <span class="card-lang" style="opacity:0">x</span>
-          ${sizerBackHtml}
+          ${sizerBackHtml||'<div class="card-word" style="opacity:0">x</div>'}
           <div class="card-footer"><span class="flip-hint" style="opacity:0">x</span></div>
         </div>
       </div>
@@ -964,9 +979,15 @@ function renderCard(){
       <button class="rb r-good" onclick="rate(4)">○ Good<span class="rbs">remembered</span></button>
       <button class="rb r-easy" onclick="rate(5)">★ Easy<span class="rbs">effortless</span></button>
     </div>
-    <div id="flip-cue"><span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--text3);letter-spacing:.08em">CLICK CARD TO REVEAL</span></div>
-    <button class="start-btn" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border2);margin-top:.8rem;font-size:.7rem" onclick="endSession()">Finish review</button>`;
+    <div id="flip-cue"><span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--text3);letter-spacing:.08em">CLICK CARD TO REVEAL</span></div>`;
   tickTimer();
+  // After paint: ensure card-inner is as tall as the taller face (front may be taller than back sizer)
+  requestAnimationFrame(()=>{
+    const inner=document.getElementById('cinn');if(!inner)return;
+    const faces=inner.querySelectorAll('.card-face');
+    let maxH=0;faces.forEach(f=>{const h=f.scrollHeight;if(h>maxH)maxH=h;});
+    if(maxH>0)inner.style.minHeight=maxH+'px';
+  });
 }
 function sessionDone(){
   document.getElementById('prog-fill').style.width='100%';
